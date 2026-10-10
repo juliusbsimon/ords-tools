@@ -293,3 +293,118 @@ default_health_urls() { printf '%s%s/' "$(ords_origin)" "$(ords_context)"; }
 # The table ORDS prints once it has read its pools, one line per pool:
 #   /ords/    => default    => VALID
 pool_table() { grep -E '=>.*=> *[A-Z]+ *$' || true; }
+
+# -----------------------------------------------------------------------------
+#  Getting a release
+# -----------------------------------------------------------------------------
+# The zip for a build. Oracle names it from the build number that
+# 'ords --version' prints: r1901402 is day 190, 14:02, so ords-26.2.1.190.1402.zip.
+zip_name_for() {
+    local v="$1"
+    if [[ $v =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.r([0-9]{2,3})([0-9]{4})$ ]]; then
+        printf 'ords-%s.%s.%s.zip' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+    elif [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        printf 'ords-%s.zip' "$v"
+    else
+        return 1
+    fi
+}
+
+# Reuses an earlier download when Oracle's ETag has not changed, so a dry run
+# followed by the real run downloads ~200 MB once, not twice.
+download() {
+    local url="$1" out="$2" etag
+    etag="$(curl -fsIL --max-time 30 "$url" | tr -d '\r' | awk 'tolower($1)=="etag:"{v=$2} END{print v}')" \
+        || die "Cannot reach ${url}. For a server without internet access, download it
+     elsewhere and pass --zip."
+    [ -n "$etag" ] || die "${url} does not exist. Check the version, or pass --zip."
+    if [ -f "$out" ] && [ "$(cat "${out}.etag" 2>/dev/null)" = "$etag" ]; then
+        ok "Using the copy already downloaded: ${out}"
+        return 0
+    fi
+    log "Downloading ${url}"
+    local -a progress=(-sS)
+    [ -t 1 ] && progress=(--progress-bar)
+    curl -fL --retry 3 "${progress[@]}" -o "${out}.part" "$url" || die "Download failed: ${url}"
+    mv "${out}.part" "$out"
+    printf '%s' "$etag" >"${out}.etag"
+}
+
+# -----------------------------------------------------------------------------
+#  Is a freshly started ORDS healthy?
+# -----------------------------------------------------------------------------
+# What ORDS has logged since start_and_check() started it: the journal for this
+# run of the unit, or the part of ORDS_LOG_FILE written since.
+startup_log() {
+    if [ -n "$ORDS_LOG_FILE" ]; then
+        [ -r "$ORDS_LOG_FILE" ] || return 0
+        local size
+        size="$(stat -c %s "$ORDS_LOG_FILE")"
+        # Rotated or truncated since we looked: it is all new.
+        [ "$size" -ge "${LOG_OFFSET:-0}" ] || LOG_OFFSET=0
+        tail -c +"$(( ${LOG_OFFSET:-0} + 1 ))" "$ORDS_LOG_FILE"
+    else
+        journalctl -u "$ORDS_SERVICE" "_SYSTEMD_INVOCATION_ID=$(unit_prop InvocationID)" \
+            -o cat --no-pager -q 2>/dev/null || true
+    fi
+}
+
+# ORDS reads its pools at startup and prints a table of them, ending with
+# "Oracle REST Data Services initialized":
+#
+#   /ords/    => default    => VALID
+#
+# That table is the real test. HTTP alone is not: ORDS starts listening a few
+# seconds before it checks the pools, and '/ords/' answers 302 even when every
+# pool is INVALID - only requests that need the database return errors (574).
+pools_valid() {
+    local out bad deadline=$((SECONDS + HEALTH_TIMEOUT))
+    if [ -z "$ORDS_LOG_FILE" ]; then
+        case "$(unit_prop StandardOutput)" in
+            journal*|inherit|kmsg*) ;;
+            *) warn "Cannot find where ${ORDS_SERVICE} logs, so pool status is not checked. Set ORDS_LOG_FILE."; return 0 ;;
+        esac
+    fi
+    while :; do
+        out="$(startup_log)"
+        if grep -q 'REST Data Services initialized' <<<"$out"; then
+            bad="$(printf '%s\n' "$out" | pool_table | grep -vE '=> *VALID *$' || true)"
+            if [ -n "$bad" ]; then
+                warn "ORDS started, but not every pool can reach its database:"
+                printf '%s\n' "$bad" | sed 's/^ */       /' >&2
+                return 1
+            fi
+            ok "All pools VALID"
+            return 0
+        fi
+        if ! systemctl is-active --quiet "$ORDS_SERVICE"; then
+            warn "The ${ORDS_SERVICE} service stopped while starting. See: journalctl -u ${ORDS_SERVICE}"
+            return 1
+        fi
+        [ "$SECONDS" -lt "$deadline" ] || { warn "ORDS did not log that it had finished starting within ${HEALTH_TIMEOUT}s."; return 1; }
+        sleep 3
+    done
+}
+
+healthy() {
+    pools_valid || return 1
+    local url code state deadline=$((SECONDS + HEALTH_TIMEOUT))
+    for url in $HEALTH_URLS; do
+        while :; do
+            state="$(systemctl is-active "$ORDS_SERVICE" 2>/dev/null || true)"
+            if [ "$state" = failed ] || [ "$state" = inactive ]; then
+                warn "The ${ORDS_SERVICE} service is ${state}. See: journalctl -u ${ORDS_SERVICE}"
+                return 1
+            fi
+            code="$(curl -ks -o /dev/null -w '%{http_code}' --max-time 10 "$url" || true)"
+            case "$code" in
+                2??|3??) ok "${url} answers HTTP ${code}"; break ;;
+            esac
+            if [ "$SECONDS" -ge "$deadline" ]; then
+                warn "${url} did not answer healthily within ${HEALTH_TIMEOUT}s (last HTTP ${code:-none})"
+                return 1
+            fi
+            sleep 5
+        done
+    done
+}

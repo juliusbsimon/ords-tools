@@ -1,7 +1,8 @@
 # Reference
 
-What the two scripts do, their options, and how they were tested. For the
-procedure, see [GUIDE.md](GUIDE.md).
+What the upgrade and diagnostic scripts do, their options, and how they were
+tested. For the upgrade procedure, see [GUIDE.md](GUIDE.md); for installing,
+[INSTALL.md](INSTALL.md).
 
 | File | What it does |
 |---|---|

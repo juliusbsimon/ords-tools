@@ -9,7 +9,8 @@ the work:
   version does not come up healthy.
 
 This page is the procedure. For what each script does step by step, its
-options and its settings, see [REFERENCE.md](REFERENCE.md).
+options and its settings, see [REFERENCE.md](REFERENCE.md). To set up ORDS on
+a new server, see [INSTALL.md](INSTALL.md).
 
 > **Status.** Run for real on 2026-10-10: an EC2 server with a plain zip
 > install, upgraded from ORDS 26.1.0 to 26.3.0 against RDS for Oracle, with
@@ -85,7 +86,7 @@ Do this once per server.
 **1. Download the scripts onto the server.** Log in to the server and run:
 
 ```bash
-mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.0.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
+mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.1.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
 cd ~/ords-tools
 ```
 
@@ -99,9 +100,9 @@ If the server has no internet access, download the same file on a machine
 that has, copy it over, and unpack it there:
 
 ```bash
-curl -fsSLO https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.0.0.tar.gz
-scp -i ~/.ssh/server-key v1.0.0.tar.gz ec2-user@SERVER:
-ssh -i ~/.ssh/server-key ec2-user@SERVER 'mkdir -p ~/ords-tools && tar xzf v1.0.0.tar.gz -C ~/ords-tools --strip-components=1'
+curl -fsSLO https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.1.0.tar.gz
+scp -i ~/.ssh/server-key v1.1.0.tar.gz ec2-user@SERVER:
+ssh -i ~/.ssh/server-key ec2-user@SERVER 'mkdir -p ~/ords-tools && tar xzf v1.1.0.tar.gz -C ~/ords-tools --strip-components=1'
 ```
 
 `ssh` and `scp` cannot read a PuTTY key (`.ppk`). Convert it once:
