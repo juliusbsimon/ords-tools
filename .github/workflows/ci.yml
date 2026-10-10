@@ -17,7 +17,24 @@ jobs:
       - name: Shellcheck
         run: |
           docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
-            -S warning -x ords-upgrade.sh ords-diag.sh ords-common.sh
+            -S warning -x ords-install.sh ords-upgrade.sh ords-diag.sh ords-common.sh
+
+  java-helper:
+    name: ords-db.java compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      # Without arguments it prints its usage and exits 2 - after compiling,
+      # which is the part being tested. It needs no JDBC driver to compile.
+      - name: Compile and run with no arguments
+        run: |
+          set +e
+          java ords-db.java; rc=$?
+          [ "$rc" -eq 2 ] || { echo "expected exit 2, got $rc"; exit 1; }
 
   download:
     name: Download command unpacks a working copy
@@ -31,6 +48,8 @@ jobs:
           git archive --format=tar.gz --prefix=ords-tools-test/ HEAD > /tmp/a.tar.gz
           mkdir -p /tmp/ords-tools && tar xzf /tmp/a.tar.gz -C /tmp/ords-tools --strip-components=1
           cd /tmp/ords-tools
-          test -x ords-upgrade.sh && test -x ords-diag.sh && test -f ords-common.sh
+          test -x ords-install.sh && test -x ords-upgrade.sh && test -x ords-diag.sh
+          test -f ords-common.sh && test -f ords-db.java
+          ./ords-install.sh --help >/dev/null
           ./ords-upgrade.sh --help >/dev/null
           ./ords-diag.sh --help >/dev/null

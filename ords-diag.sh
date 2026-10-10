@@ -481,6 +481,10 @@ if [ "$state" = active ]; then
                 code="$(http_code -L --max-redirs 5 -c "$COOKIES" -b "$COOKIES" "${origin}${path}apex")"
                 case "$code" in
                     2??) check "http.${pname}.apex" PASS "${path}apex (APEX) answers HTTP ${code}" ;;
+                    570) check "http.${pname}.apex" FAIL "${path}apex (APEX) answers HTTP 570: ORDS cannot proxy through APEX_PUBLIC_USER" \
+                             "It is usually locked or its password has expired. As the admin user:
+  select account_status from dba_users where username = 'APEX_PUBLIC_USER';
+  alter user apex_public_user account unlock;" ;;
                     *)   check "http.${pname}.apex" FAIL "${path}apex (APEX) answers HTTP ${code:-nothing}" ;;
                 esac ;;
         esac
