@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # -x follows the scripts into ords-common.sh, so a variable set there
+      # and read in a script is not reported as unused.
+      - name: Shellcheck
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
+            -S warning -x ords-upgrade.sh ords-diag.sh ords-common.sh
+
+  download:
+    name: Download command unpacks a working copy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The README's download unpacks a GitHub archive; git archive builds the
+      # same thing, so this catches a missing file or a lost executable bit.
+      - name: Unpack an archive like a server would
+        run: |
+          git archive --format=tar.gz --prefix=ords-tools-test/ HEAD > /tmp/a.tar.gz
+          mkdir -p /tmp/ords-tools && tar xzf /tmp/a.tar.gz -C /tmp/ords-tools --strip-components=1
+          cd /tmp/ords-tools
+          test -x ords-upgrade.sh && test -x ords-diag.sh && test -f ords-common.sh
+          ./ords-upgrade.sh --help >/dev/null
+          ./ords-diag.sh --help >/dev/null

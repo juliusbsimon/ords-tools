@@ -1,0 +1,59 @@
+# =============================================================================
+#  ords-upgrade.sh settings
+#
+#  Copy to /etc/ords-upgrade.conf on the ORDS server and chmod 600 it. Sourced
+#  by bash, so quote anything with spaces.
+#
+#  Everything is optional except the database password. Blank values are
+#  detected from the systemd unit, and './ords-upgrade.sh --dry-run' shows
+#  what was found before anything changes.
+# =============================================================================
+
+# --- Database ----------------------------------------------------------------
+# Upgrades the ORDS schema. On RDS this is the master user; there is no SYS.
+ORDS_ADMIN_USER=admin
+# A root-only file holding the password on its first line. Leave blank to be
+# prompted. ORDS_ADMIN_PWD in the environment also works, for one-off runs.
+ORDS_ADMIN_PWD_FILE=/root/.ords-admin-pwd
+
+# RDS instance identifier (not the endpoint). When set, an RDS snapshot is
+# taken before anything changes. The ORDS schema upgrade cannot be undone any
+# other way, so set this for anything that matters. Needs the aws CLI with
+# rds:CreateDBSnapshot and rds:DescribeDBSnapshots.
+RDS_INSTANCE_ID=
+# AWS_REGION=eu-central-1
+# How long to wait for the snapshot, in seconds.
+RDS_SNAPSHOT_TIMEOUT=7200
+
+# Pools to upgrade through, comma-separated. Blank means every pool under
+# ORDS_CONFIG/databases. Only needed when some pools use a different admin
+# user or password - run once per set of credentials.
+ORDS_POOLS=
+
+# --- How ORDS is installed and run (detected; set only to override) ----------
+ORDS_SERVICE=ords
+# The path the unit runs ORDS from. After the first upgrade it is a symlink.
+ORDS_HOME=
+ORDS_CONFIG=
+ORDS_USER=
+ORDS_JAVA_HOME=
+# Where unpacked releases live. Default: ords-versions next to ORDS_HOME.
+ORDS_VERSIONS_DIR=
+# Where ORDS writes its output, if not the journal. Detected for the RPM and
+# for units with StandardOutput=append:/file:.
+ORDS_LOG_FILE=
+
+# --- Checks after the upgrade ------------------------------------------------
+# Space-separated URLs that must answer 2xx or 3xx. Pool status is checked from
+# the ORDS log regardless; these check what users actually hit. An APEX URL
+# makes a good addition, e.g.
+#   HEALTH_URLS="http://127.0.0.1:8080/ords/ http://127.0.0.1:8080/ords/r/myapp/home"
+HEALTH_URLS=
+HEALTH_TIMEOUT=300
+
+# --- Housekeeping ------------------------------------------------------------
+# Config backups, downloads and a record of every run.
+BACKUP_DIR=/var/backups/ords-upgrade
+# Releases kept in ORDS_VERSIONS_DIR, including the current one and the one it
+# replaced (which is always kept, for --rollback).
+KEEP_VERSIONS=3
