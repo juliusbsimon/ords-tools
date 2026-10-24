@@ -31,7 +31,7 @@ settings live in `/etc`, so they are kept.
 
 ```bash
 sudo bash -c 'read -rsp "Password: " p; echo; printf "%s\n" "$p" > /root/.ords-admin-pwd; chmod 600 /root/.ords-admin-pwd'
-sudo dnf install -y java-21-openjdk-headless
+sudo dnf install -y java-21-openjdk-headless    # Amazon Linux 2023: java-21-amazon-corretto-headless
 sudo ./ords-install.sh --db-host mydb.abc123.us-east-2.rds.amazonaws.com --db-service ORCL \
     --admin-user admin --admin-pwd-file /root/.ords-admin-pwd --dry-run
 ```
@@ -100,8 +100,9 @@ database snapshot takes that back.
 
 ## Status
 
-The installer is tested on Oracle Linux 9 containers with real systemd,
-against Oracle 21c with APEX 26.1. It has not yet been run against RDS.
+The installer is tested on Oracle Linux 9 and Amazon Linux 2023 containers
+with real systemd, against Oracle 21c with APEX 26.1. It has not yet been run
+against RDS.
 
 The upgrade was used for real on 2026-10-10: ORDS 26.1.0 to 26.3.0 on an EC2
 server against RDS for Oracle. Before that, tested on Oracle Linux 9 with
