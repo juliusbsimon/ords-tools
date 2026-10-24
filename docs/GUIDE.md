@@ -52,7 +52,7 @@ a new server, see [INSTALL.md](INSTALL.md).
   layouts: a zip with a symlink, a plain unpacked zip, and Oracle's RPM.
 - Root, through `sudo`.
 - `bash`, `curl`, `unzip`, `tar`, `flock` and `runuser`. They are on any
-  standard Oracle Linux or RHEL install. `ords-diag.sh` lists anything
+  standard Oracle Linux, RHEL or Amazon Linux 2023 install. `ords-diag.sh` lists anything
   missing.
 - The password of the database user that upgrades the ORDS schema. On RDS
   this is the master user.

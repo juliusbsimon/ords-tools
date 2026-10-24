@@ -32,7 +32,7 @@ already there.
 | `/opt/ords` | A link to the release. `ords-upgrade.sh` moves this link to new releases |
 | `/etc/ords/config/` | The ORDS configuration, owned by the service user and readable by nobody else |
 | `/etc/systemd/system/ords.service` | The service. It starts at boot, runs as the `ords` system user, and restarts ORDS if it crashes |
-| `/usr/lib/jvm/jre-21` | Java 21 from dnf, so it gets security fixes with your normal OS updates |
+| `/usr/lib/jvm/jre-21` | Java 21 from dnf, so it gets security fixes with your normal OS updates: OpenJDK, or Amazon Corretto on Amazon Linux 2023 |
 | `/etc/ords-upgrade.conf` | Settings for `ords-upgrade.sh` and `ords-diag.sh`: the admin user, and where its password file is |
 | `/var/backups/ords-upgrade/install-<time>/` | The install's log, including what `ords install` printed |
 
@@ -43,8 +43,10 @@ Developer Web) and REST-enabled SQL are off unless you ask for them.
 
 ## 2. Before you start
 
-- **A server** running Oracle Linux 9, or another system with dnf and systemd.
-  It has been tested on Oracle Linux 9 only.
+- **A server** running Oracle Linux 9, Amazon Linux 2023, or another system
+  with dnf and systemd. It has been tested on Oracle Linux 9 and Amazon
+  Linux 2023. Amazon Linux 2 has no dnf and its support ended in June 2026:
+  use Amazon Linux 2023 for a new EC2 server.
 - **Root,** through `sudo`.
 - **A database the server can reach.** On RDS, the instance's security group
   must allow this server on port 1521. The installer checks this first.
@@ -76,10 +78,12 @@ sudo bash -c 'read -rsp "Password: " p; echo; printf "%s\n" "$p" > /root/.ords-a
 **3. Install Java,** so the dry run can check the database:
 
 ```bash
-sudo dnf install -y java-21-openjdk-headless
+sudo dnf install -y java-21-openjdk-headless           # Oracle Linux, RHEL
+sudo dnf install -y java-21-amazon-corretto-headless   # Amazon Linux 2023
 ```
 
-You can skip this step. The real install asks before installing Java itself;
+Amazon Linux 2023 has no OpenJDK package; Corretto is Amazon's build of the
+same JDK, and the installer picks it there on its own. You can skip this step. The real install asks before installing Java itself;
 only the dry run needs Java to be there already.
 
 **4. Do a dry run.** It checks the database connection, logs in as the admin
@@ -197,7 +201,7 @@ only.
 | `--no-apex` | No APEX: REST services only |
 | `--apex-cdn` | Switch APEX to Oracle's CDN even when other servers share the database |
 | `--database-actions` | Turn on Database Actions, with the REST-enabled SQL and Database API it needs |
-| `--java-home DIR` | Use this Java instead of installing it from dnf |
+| `--java-home DIR` | Use this Java instead of installing Java 21 from dnf |
 | `--service-user NAME` | Default `ords` |
 | `--dry-run` | Check everything and print the plan. Installs nothing |
 | `--yes` | Do not ask for confirmation |
@@ -257,6 +261,18 @@ APEX 26.1, installing ORDS 26.3.0:
 - `APEX_PUBLIC_USER` locked: unlocked by the installer, APEX answering
 - port 80, `--no-apex` and `--database-actions`
 - `ords-upgrade.sh --force` and `--rollback` on an installed server
+
+On an Amazon Linux 2023 container with real systemd (the packages a stock
+AL2023 AMI has), against the same database, installing ORDS 26.3.0
+(2026-10-23):
+
+- the dry run without Java: refused, naming `java-21-amazon-corretto-headless`
+- the first server: Corretto 21 installed from dnf, the service on
+  `/usr/lib/jvm/jre-21`, ORDS schema installed, APEX switched to the CDN,
+  every pool `VALID` and APEX answering
+- `ords-diag.sh`: `READY_WITH_WARNINGS` (no RDS snapshot configured)
+- `ords-upgrade.sh --force`, then `--rollback`
+- a restart of the server: ORDS starting on its own and answering
 
 Not tested: RDS (the master user's privileges for a fresh schema install have
 not been checked), Oracle Linux 8 or RHEL, and an expired `APEX_PUBLIC_USER`

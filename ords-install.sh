@@ -6,6 +6,7 @@
 #   /opt/ords                    symlink to it - what the service runs
 #   /etc/ords/config             the configuration, owned by the service user
 #   ords.service                 systemd, as the 'ords' system user, Java 21 from dnf
+#                                (OpenJDK; Amazon Corretto on Amazon Linux 2023)
 #
 #   ./ords-install.sh --db-host mydb.abc123.us-east-2.rds.amazonaws.com --db-service ORCL --dry-run
 #   ./ords-install.sh --db-host mydb.abc123.us-east-2.rds.amazonaws.com --db-service ORCL
@@ -42,7 +43,7 @@
 #   --database-actions     turn on Database Actions (SQL Developer Web), with the
 #                          REST-enabled SQL and Database API it needs. All three
 #                          are off by default
-#   --java-home DIR        use this Java instead of installing java-21-openjdk-headless
+#   --java-home DIR        use this Java instead of installing Java 21 with dnf
 #   --service-user NAME    default ords
 #   -n, --dry-run          check everything and print the plan; install nothing
 #                          (Java must already be installed to check the database)
@@ -98,8 +99,11 @@ done
 [[ $DB_PORT =~ ^[0-9]+$ ]] || die "--db-port must be a port number."
 
 [ "$(id -u)" -eq 0 ] || die "Run as root: it installs packages, creates a user and a service."
+# The package each tool comes in, for the message when one is missing.
+declare -A TOOL_PKG=([systemctl]=systemd [curl]=curl [unzip]=unzip [tar]=tar [runuser]=util-linux [useradd]=shadow-utils)
 for tool in systemctl curl unzip tar runuser useradd; do
-    command -v "$tool" >/dev/null 2>&1 || die "Needs '${tool}', which is not installed."
+    command -v "$tool" >/dev/null 2>&1 \
+        || die "Needs '${tool}', which is not installed. Install it with: dnf install -y ${TOOL_PKG[$tool]}"
 done
 [ -f "${HERE}/ords-db.java" ] || die "ords-db.java must be in the same directory as this script."
 
@@ -207,6 +211,13 @@ ok "Database listener ${DB_HOST}:${DB_PORT} is reachable"
 #  2. Java
 # -----------------------------------------------------------------------------
 JAVA_INSTALLED_NOW=false
+# Oracle Linux and RHEL ship OpenJDK; Amazon Linux 2023 ships Amazon Corretto
+# instead and has no java-21-openjdk-headless. Both packages create the
+# /usr/lib/jvm/jre-21 alternatives link used below.
+JAVA_PKG=java-21-openjdk-headless
+if [ -r /etc/os-release ] && [ "$(. /etc/os-release && echo "${ID:-}")" = amzn ]; then
+    JAVA_PKG=java-21-amazon-corretto-headless
+fi
 if [ -n "$JAVA_HOME_OPT" ]; then
     [ -x "${JAVA_HOME_OPT}/bin/java" ] || die "No ${JAVA_HOME_OPT}/bin/java."
     ORDS_JAVA_HOME="$JAVA_HOME_OPT"
@@ -218,13 +229,15 @@ else
     if [ "$DRY_RUN" = true ]; then
         die "Java 21 is not installed yet, and the dry run needs it to check the database.
      Install it first - it changes nothing else:
-       sudo dnf install -y java-21-openjdk-headless
+       sudo dnf install -y ${JAVA_PKG}
      then rerun the dry run."
     fi
-    confirm "Java 21 is not installed. Install java-21-openjdk-headless with dnf, so the database can be checked?"
-    log "Installing java-21-openjdk-headless"
-    dnf -y -q install java-21-openjdk-headless
+    confirm "Java 21 is not installed. Install ${JAVA_PKG} with dnf, so the database can be checked?"
+    log "Installing ${JAVA_PKG}"
+    dnf -y -q install "$JAVA_PKG"
     JAVA_INSTALLED_NOW=true
+    [ -x /usr/lib/jvm/jre-21/bin/java ] \
+        || die "${JAVA_PKG} is installed but /usr/lib/jvm/jre-21/bin/java is missing. Pass --java-home."
     ORDS_JAVA_HOME=/usr/lib/jvm/jre-21
 fi
 JAVA_BIN="${ORDS_JAVA_HOME}/bin/java"
