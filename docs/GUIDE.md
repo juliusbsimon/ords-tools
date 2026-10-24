@@ -86,7 +86,7 @@ Do this once per server.
 **1. Download the scripts onto the server.** Log in to the server and run:
 
 ```bash
-mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.1.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
+mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.2.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
 cd ~/ords-tools
 ```
 
@@ -100,9 +100,9 @@ If the server has no internet access, download the same file on a machine
 that has, copy it over, and unpack it there:
 
 ```bash
-curl -fsSLO https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.1.0.tar.gz
-scp -i ~/.ssh/server-key v1.1.0.tar.gz ec2-user@SERVER:
-ssh -i ~/.ssh/server-key ec2-user@SERVER 'mkdir -p ~/ords-tools && tar xzf v1.1.0.tar.gz -C ~/ords-tools --strip-components=1'
+curl -fsSLO https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.2.0.tar.gz
+scp -i ~/.ssh/server-key v1.2.0.tar.gz ec2-user@SERVER:
+ssh -i ~/.ssh/server-key ec2-user@SERVER 'mkdir -p ~/ords-tools && tar xzf v1.2.0.tar.gz -C ~/ords-tools --strip-components=1'
 ```
 
 `ssh` and `scp` cannot read a PuTTY key (`.ppk`). Convert it once:

@@ -18,7 +18,7 @@ RDS for Oracle or self-managed.
 On the ORDS server:
 
 ```bash
-mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.1.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
+mkdir -p ~/ords-tools && curl -fsSL https://github.com/juliusbsimon/ords-tools/archive/refs/tags/v1.2.0.tar.gz | tar xz -C ~/ords-tools --strip-components=1
 cd ~/ords-tools
 ```
 
